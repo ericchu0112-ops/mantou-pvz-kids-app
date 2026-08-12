@@ -807,7 +807,21 @@ function renderGame(){
       <div class="stat-chip">🌊 波次：<span id="gWave">1</span></div>
     </div>
     <div id="plantBar"></div>
-    <div id="boardWrap"><div id="board"></div></div>
+    <div id="boardWrap">
+      <div class="board-sky">
+        <svg viewBox="0 0 400 56" preserveAspectRatio="none">
+          <g opacity=".9" fill="#ffffff">
+            <ellipse cx="55" cy="20" rx="26" ry="10"/><ellipse cx="78" cy="16" rx="18" ry="8"/><ellipse cx="34" cy="16" rx="16" ry="8"/>
+            <ellipse cx="290" cy="26" rx="30" ry="11"/><ellipse cx="316" cy="21" rx="18" ry="8"/><ellipse cx="264" cy="21" rx="16" ry="8"/>
+          </g>
+          <g fill="#c9915b">
+            ${Array.from({length:14},(_,i)=>`<rect x="${i*30+4}" y="40" width="6" height="16"/>`).join('')}
+          </g>
+          <rect x="0" y="46" width="400" height="4" fill="#a97a48"/>
+        </svg>
+      </div>
+      <div id="board"></div>
+    </div>
     <div style="margin-top:14px;"><button class="ghostBtn" id="restartBtn">🔄 重新开始</button></div>
   `;
   document.getElementById('plantBar').innerHTML = Object.entries(PLANT_TYPES).map(([key,p])=>`
