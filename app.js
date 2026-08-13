@@ -196,19 +196,28 @@ function renderHome(){
 }
 
 /* ================= 拼音天地 ================= */
-// 每个声母/韵母配一个常见字（尽量零声母/生活常见字），朗读真实汉字比朗读裸拼音更准确自然
-const INITIALS = [['b','爸'],['p','皮'],['m','妈'],['f','飞'],['d','大'],['t','天'],['n','你'],['l','拉'],
-  ['g','哥'],['k','看'],['h','河'],['j','鸡'],['q','七'],['x','西'],
-  ['zh','猪'],['ch','车'],['sh','山'],['r','人'],['z','字'],['c','草'],['s','三'],['y','鱼'],['w','我']];
-const FINALS = [['a','啊'],['o','哦'],['e','鹅'],['i','衣'],['u','屋'],['ü','雨'],
-  ['ai','爱'],['ei','黑'],['ui','对'],['ao','好'],['ou','猴'],['iu','牛'],
-  ['ie','姐'],['üe','月'],['er','耳'],['an','伞'],['en','门'],['in','心'],
-  ['un','春'],['ün','裙'],['ang','糖'],['eng','灯'],['ing','星'],['ong','熊']];
+// [声母/韵母, 呼读音（教材标准读法，带声调）, 配套例字]
+const REAL_AUDIO = {}; // 预留：找到真人录音后填 {呼读音或例字: '音频文件路径'}
+const INITIALS = [['b','bō','爸'],['p','pō','皮'],['m','mō','妈'],['f','fō','飞'],['d','dē','大'],['t','tē','天'],['n','nē','你'],['l','lē','拉'],
+  ['g','gē','哥'],['k','kē','看'],['h','hē','河'],['j','jī','鸡'],['q','qī','七'],['x','xī','西'],
+  ['zh','zhī','猪'],['ch','chī','车'],['sh','shī','山'],['r','rī','人'],['z','zī','字'],['c','cī','草'],['s','sī','三'],['y','yī','鱼'],['w','wū','我']];
+const FINALS = [['a','ā','啊'],['o','ō','哦'],['e','ē','鹅'],['i','yī','衣'],['u','wū','屋'],['ü','yū','雨'],
+  ['ai','āi','爱'],['ei','ēi','黑'],['ui','wēi','对'],['ao','āo','好'],['ou','ōu','猴'],['iu','yōu','牛'],
+  ['ie','yē','姐'],['üe','yuē','月'],['er','ēr','耳'],['an','ān','伞'],['en','ēn','门'],['in','yīn','心'],
+  ['un','wēn','春'],['ün','yūn','裙'],['ang','āng','糖'],['eng','ēng','灯'],['ing','yīng','星'],['ong','wēng','熊']];
+function speakSyllableThenChar(reading, ch){
+  playAudioOrSpeak(reading);
+  setTimeout(()=> playAudioOrSpeak(ch), 750);
+}
+function playAudioOrSpeak(text, lang){
+  if(REAL_AUDIO[text]){ const a = new Audio(REAL_AUDIO[text]); a.play(); return; }
+  speak(text, lang);
+}
 let pinyinState = { section:'initials' };
 function renderPinyin(){
   contentEl.innerHTML = `
     <h2>🔤 拼音天地</h2>
-    <div class="hint">💡 点击卡片可以听真人发音！每个拼音都配了一个常见字帮助记忆，比如 b — 爸爸的"爸"～</div>
+    <div class="hint">💡 点击卡片先听标准读音（比如 b 读 "bō"），再听一个例字帮助记忆（bō — 爸）～</div>
     <div class="section-tabs">
       <button data-sec="initials" class="active">一、声母（23个）</button>
       <button data-sec="finals">二、韵母（24个）</button>
@@ -229,37 +238,38 @@ function renderPinyin(){
     });
   });
   drawPinyinGrid();
-  document.getElementById('pyPlayBtn').addEventListener('click', ()=> speak(pinyinState.quizChar));
+  document.getElementById('pyPlayBtn').addEventListener('click', ()=> speakSyllableThenChar(pinyinState.quizReading, pinyinState.quizChar));
   newPinyinQuiz();
 }
 function drawPinyinGrid(){
   const data = pinyinState.section==='initials' ? INITIALS : FINALS;
   const grid = document.getElementById('pyGrid');
-  grid.innerHTML = data.map(([l,ch])=>`<div class="card" data-ch="${ch}"><div class="big">${l}</div><div class="lbl">例字：${ch}</div></div>`).join('');
-  grid.querySelectorAll('.card').forEach(c=> c.addEventListener('click', ()=> speak(c.dataset.ch)));
+  grid.innerHTML = data.map(([l,reading,ch])=>`<div class="card" data-reading="${reading}" data-ch="${ch}"><div class="big">${l}</div><div class="lbl">${reading} · 例字：${ch}</div></div>`).join('');
+  grid.querySelectorAll('.card').forEach(c=> c.addEventListener('click', ()=> speakSyllableThenChar(c.dataset.reading, c.dataset.ch)));
 }
 function newPinyinQuiz(){
   const data = pinyinState.section==='initials' ? INITIALS : FINALS;
   const correct = data[Math.floor(Math.random()*data.length)];
   const opts = [correct];
   uniquePush(opts, correct, ()=>data[Math.floor(Math.random()*data.length)], 4);
-  pinyinState.quizChar = correct[1];
-  document.getElementById('pyQuizChar').textContent = correct[1];
+  pinyinState.quizReading = correct[1];
+  pinyinState.quizChar = correct[2];
+  document.getElementById('pyQuizChar').textContent = correct[2];
   mountQuiz(document.getElementById('pyOptions'), shuffled(opts).map(([l])=>({value:l,label:l})), correct[0], {nextFn:newPinyinQuiz});
-  speak(correct[1]);
+  speakSyllableThenChar(correct[1], correct[2]);
 }
 
 /* ================= 数学乐园 ================= */
 const MATH_ICONS = ['🌻','🍎','🍓','🐝','🌰'];
 const NUM_CN = ['零','一','二','三','四','五','六','七','八','九','十'];
-let mathState = { section:'count' };
+let mathState = { section:'arith' };
 function renderMath(){
   contentEl.innerHTML = `
     <h2>🔢 数学乐园</h2>
     <div class="hint">💡 不确定答案时先点"提示"，跟着一个一个数，比直接猜答案学得更牢！</div>
     <div class="section-tabs">
-      <button data-sec="count" class="active">一、数一数</button>
-      <button data-sec="arith">二、算一算</button>
+      <button data-sec="arith" class="active">一、算一算</button>
+      <button data-sec="count">二、数一数</button>
     </div>
     <div id="mathVisual" style="font-size:34px;letter-spacing:6px;min-height:56px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
     <div id="numberLine" style="margin:14px 0;"></div>
@@ -574,32 +584,54 @@ function newEnglishQuiz(){
 }
 
 /* ================= 古诗诵读 ================= */
-// 上海市小学语文一年级（统编版·五四学制，一年级下册）实际收录的3首古诗
 const POEMS = [
-  {title:'静夜思', author:'李白', lines:['床前明月光，','疑是地上霜。','举头望明月，','低头思故乡。']},
-  {title:'池上', author:'白居易', lines:['小娃撑小艇，','偷采白莲回。','不解藏踪迹，','浮萍一道开。']},
-  {title:'小池', author:'杨万里', lines:['泉眼无声惜细流，','树阴照水爱晴柔。','小荷才露尖尖角，','早有蜻蜓立上头。']}
+  {title:'静夜思', author:'李白', tag:'沪教材·一年级', lines:['床前明月光，','疑是地上霜。','举头望明月，','低头思故乡。']},
+  {title:'池上', author:'白居易', tag:'沪教材·一年级', lines:['小娃撑小艇，','偷采白莲回。','不解藏踪迹，','浮萍一道开。']},
+  {title:'小池', author:'杨万里', tag:'沪教材·一年级', lines:['泉眼无声惜细流，','树阴照水爱晴柔。','小荷才露尖尖角，','早有蜻蜓立上头。']},
+  {title:'咏鹅', author:'骆宾王', lines:['鹅，鹅，鹅，','曲项向天歌。','白毛浮绿水，','红掌拨清波。']},
+  {title:'春晓', author:'孟浩然', lines:['春眠不觉晓，','处处闻啼鸟。','夜来风雨声，','花落知多少。']},
+  {title:'悯农', author:'李绅', lines:['锄禾日当午，','汗滴禾下土。','谁知盘中餐，','粒粒皆辛苦。']},
+  {title:'画', author:'佚名', lines:['远看山有色，','近听水无声。','春去花还在，','人来鸟不惊。']},
+  {title:'风', author:'李峤', lines:['解落三秋叶，','能开二月花。','过江千尺浪，','入竹万竿斜。']},
+  {title:'一去二三里', author:'邵康节', lines:['一去二三里，','烟村四五家。','亭台六七座，','八九十枝花。']},
+  {title:'所见', author:'袁枚', lines:['牧童骑黄牛，','歌声振林樾。','意欲捕鸣蝉，','忽然闭口立。']}
 ];
+let poemState = { i: 0 };
 function renderPoems(){
   contentEl.innerHTML = `
     <h2>📖 古诗诵读</h2>
-    <div class="hint">💡 点击古诗卡片可以听朗读！多读多背，培养语感～</div>
-    <div class="list-2col" id="poemGrid"></div>
+    <div class="hint">💡 从左边目录选一首古诗，点"播放朗读"跟着读一读！前3首是上海一年级教材里真实收录的古诗～</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;">
+      <div id="poemMenu" class="poem-menu"></div>
+      <div id="poemDetail" style="flex:1;min-width:240px;"></div>
+    </div>
     <div class="quiz-box">
       <h3 id="poemQ"></h3>
       <div class="quiz-options" id="poemOptions"></div>
       <div id="quizFeedback"></div>
     </div>`;
-  const grid = document.getElementById('poemGrid');
-  grid.innerHTML = POEMS.map((p,i)=>`
-    <div class="poem-card" data-i="${i}">
-      <h4>${p.title}</h4><div class="author">— ${p.author}</div>
-      <div class="lines">${p.lines.join('<br>')}</div>
-    </div>`).join('');
-  grid.querySelectorAll('.poem-card').forEach(c=>{
-    c.addEventListener('click', ()=>{ const p = POEMS[c.dataset.i]; speak(p.title + '。' + p.lines.join('')); });
-  });
+  drawPoemMenu();
+  drawPoemDetail();
   newPoemQuiz();
+}
+function drawPoemMenu(){
+  const menu = document.getElementById('poemMenu');
+  menu.innerHTML = POEMS.map((p,i)=>`<button data-i="${i}" class="${i===poemState.i?'active':''}">${p.title}</button>`).join('');
+  menu.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ poemState.i = parseInt(b.dataset.i); drawPoemMenu(); drawPoemDetail(); });
+  });
+}
+function drawPoemDetail(){
+  const p = POEMS[poemState.i];
+  const detail = document.getElementById('poemDetail');
+  detail.innerHTML = `
+    <div class="poem-card" style="cursor:default;">
+      <h4>${p.title} ${p.tag?`<span style="font-size:11px;font-weight:400;color:var(--primary-dark);background:var(--primary-soft);padding:2px 8px;border-radius:10px;margin-left:6px;">${p.tag}</span>`:''}</h4>
+      <div class="author">— ${p.author}</div>
+      <div class="lines">${p.lines.join('<br>')}</div>
+      <button class="playBtn" id="poemPlayBtn" style="margin-top:12px;">🔊 播放朗读</button>
+    </div>`;
+  document.getElementById('poemPlayBtn').addEventListener('click', ()=> speak(p.title + '。' + p.lines.join('')));
 }
 function newPoemQuiz(){
   const poem = pick(POEMS);
@@ -1044,6 +1076,7 @@ function tickGame(dt){
   if(killed>0){ game.score += killed*10; document.getElementById('gScore').textContent = game.score; }
 }
 function renderGameFrame(){
+  refreshPlantBar();
   const board = document.getElementById('board');
   const lanes = board.children;
   for(let r=0;r<ROWS;r++){
