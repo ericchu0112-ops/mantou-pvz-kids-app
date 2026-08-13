@@ -196,18 +196,19 @@ function renderHome(){
 }
 
 /* ================= 拼音天地 ================= */
-const INITIALS = [['b','bo'],['p','po'],['m','mo'],['f','fo'],['d','de'],['t','te'],['n','ne'],['l','le'],
-  ['g','ge'],['k','ke'],['h','he'],['j','ji'],['q','qi'],['x','xi'],
-  ['zh','zhi'],['ch','chi'],['sh','shi'],['r','ri'],['z','zi'],['c','ci'],['s','si'],['y','yi'],['w','wu']];
-const FINALS = [['a','a'],['o','o'],['e','e'],['i','yi'],['u','wu'],['ü','yu'],
-  ['ai','ai'],['ei','ei'],['ui','wei'],['ao','ao'],['ou','ou'],['iu','you'],
-  ['ie','ye'],['üe','yue'],['er','er'],['an','an'],['en','en'],['in','yin'],
-  ['un','wen'],['ün','yun'],['ang','ang'],['eng','eng'],['ing','ying'],['ong','weng']];
+// 每个声母/韵母配一个常见字（尽量零声母/生活常见字），朗读真实汉字比朗读裸拼音更准确自然
+const INITIALS = [['b','爸'],['p','皮'],['m','妈'],['f','飞'],['d','大'],['t','天'],['n','你'],['l','拉'],
+  ['g','哥'],['k','看'],['h','河'],['j','鸡'],['q','七'],['x','西'],
+  ['zh','猪'],['ch','车'],['sh','山'],['r','人'],['z','字'],['c','草'],['s','三'],['y','鱼'],['w','我']];
+const FINALS = [['a','啊'],['o','哦'],['e','鹅'],['i','衣'],['u','屋'],['ü','雨'],
+  ['ai','爱'],['ei','黑'],['ui','对'],['ao','好'],['ou','猴'],['iu','牛'],
+  ['ie','姐'],['üe','月'],['er','耳'],['an','伞'],['en','门'],['in','心'],
+  ['un','春'],['ün','裙'],['ang','糖'],['eng','灯'],['ing','星'],['ong','熊']];
 let pinyinState = { section:'initials' };
 function renderPinyin(){
   contentEl.innerHTML = `
     <h2>🔤 拼音天地</h2>
-    <div class="hint">💡 点击卡片可以听发音哦！大班小朋友先认一认「声母」的样子和读音吧～</div>
+    <div class="hint">💡 点击卡片可以听真人发音！每个拼音都配了一个常见字帮助记忆，比如 b — 爸爸的"爸"～</div>
     <div class="section-tabs">
       <button data-sec="initials" class="active">一、声母（23个）</button>
       <button data-sec="finals">二、韵母（24个）</button>
@@ -215,6 +216,7 @@ function renderPinyin(){
     <div class="grid" id="pyGrid"></div>
     <div class="quiz-box">
       <h3>🎧 听音辨字小游戏</h3>
+      <div style="text-align:center;font-size:44px;margin:6px 0;" id="pyQuizChar"></div>
       <button class="playBtn" id="pyPlayBtn">🔊 播放发音</button>
       <div class="quiz-options" id="pyOptions"></div>
       <div id="quizFeedback"></div>
@@ -227,37 +229,41 @@ function renderPinyin(){
     });
   });
   drawPinyinGrid();
-  document.getElementById('pyPlayBtn').addEventListener('click', ()=> speak(pinyinState.quizRead));
+  document.getElementById('pyPlayBtn').addEventListener('click', ()=> speak(pinyinState.quizChar));
   newPinyinQuiz();
 }
 function drawPinyinGrid(){
   const data = pinyinState.section==='initials' ? INITIALS : FINALS;
   const grid = document.getElementById('pyGrid');
-  grid.innerHTML = data.map(([l,r])=>`<div class="card" data-r="${r}"><div class="big">${l}</div><div class="lbl">点击听发音</div></div>`).join('');
-  grid.querySelectorAll('.card').forEach(c=> c.addEventListener('click', ()=> speak(c.dataset.r)));
+  grid.innerHTML = data.map(([l,ch])=>`<div class="card" data-ch="${ch}"><div class="big">${l}</div><div class="lbl">例字：${ch}</div></div>`).join('');
+  grid.querySelectorAll('.card').forEach(c=> c.addEventListener('click', ()=> speak(c.dataset.ch)));
 }
 function newPinyinQuiz(){
   const data = pinyinState.section==='initials' ? INITIALS : FINALS;
   const correct = data[Math.floor(Math.random()*data.length)];
   const opts = [correct];
   uniquePush(opts, correct, ()=>data[Math.floor(Math.random()*data.length)], 4);
-  pinyinState.quizRead = correct[1];
+  pinyinState.quizChar = correct[1];
+  document.getElementById('pyQuizChar').textContent = correct[1];
   mountQuiz(document.getElementById('pyOptions'), shuffled(opts).map(([l])=>({value:l,label:l})), correct[0], {nextFn:newPinyinQuiz});
   speak(correct[1]);
 }
 
 /* ================= 数学乐园 ================= */
 const MATH_ICONS = ['🌻','🍎','🍓','🐝','🌰'];
+const NUM_CN = ['零','一','二','三','四','五','六','七','八','九','十'];
 let mathState = { section:'count' };
 function renderMath(){
   contentEl.innerHTML = `
     <h2>🔢 数学乐园</h2>
-    <div class="hint">💡 大班小朋友先练一练10以内的数数和加减法吧～</div>
+    <div class="hint">💡 不确定答案时先点"提示"，跟着一个一个数，比直接猜答案学得更牢！</div>
     <div class="section-tabs">
       <button data-sec="count" class="active">一、数一数</button>
       <button data-sec="arith">二、算一算</button>
     </div>
     <div id="mathVisual" style="font-size:34px;letter-spacing:6px;min-height:56px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+    <div id="numberLine" style="margin:14px 0;"></div>
+    <div style="margin-bottom:10px;"><button class="playBtn" id="hintBtn">💡 提示：一个一个数</button></div>
     <div class="quiz-box">
       <h3 id="mathQ"></h3>
       <div class="quiz-options" id="mathOptions"></div>
@@ -275,26 +281,93 @@ function renderMath(){
 function newMathQuiz(){
   if(mathState.section==='count') newCountQuiz(); else newArithQuiz();
 }
+function drawNumberLine(from, to){
+  const w=320,pad=16,step=(w-pad*2)/10;
+  const x = n => pad+n*step;
+  let ticks = Array.from({length:11},(_,n)=>`<line x1="${x(n)}" y1="20" x2="${x(n)}" y2="30" stroke="#c9c2a8" stroke-width="2"/><text x="${x(n)}" y="46" text-anchor="middle" font-size="12" fill="#8a8578">${n}</text>`).join('');
+  const dir = to>=from ? 1 : -1;
+  const midX = (x(from)+x(to))/2, arcY = 20-Math.min(24,Math.abs(x(to)-x(from))*0.35);
+  const arc = `<path d="M${x(from)} 18 Q${midX} ${arcY} ${x(to)} 18" stroke="#f5b400" stroke-width="3" fill="none" marker-end="url(#arrow)"/>`;
+  return `<svg viewBox="0 0 ${w} 50" width="100%" style="max-width:340px;height:56px;">
+    <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f5b400"/></marker></defs>
+    <line x1="${pad}" y1="25" x2="${w-pad}" y2="25" stroke="#e0dac4" stroke-width="2"/>
+    ${ticks}
+    <circle cx="${x(from)}" cy="25" r="4" fill="#3fa66a"/><circle cx="${x(to)}" cy="25" r="4" fill="#e0503a"/>
+    ${arc}
+  </svg>`;
+}
+let mathHintRunning = false;
+function runCountHint(iconSel, startAt, endAt, onDone){
+  if(mathHintRunning) return;
+  mathHintRunning = true;
+  const icons = Array.from(document.querySelectorAll(iconSel));
+  const seq = []; for(let n=startAt;n<=endAt;n++) seq.push(n);
+  let i = 0;
+  function step(){
+    if(i>=seq.length){ mathHintRunning=false; if(onDone) onDone(); return; }
+    const n = seq[i];
+    const el = icons[n-1];
+    if(el) el.classList.add('counted');
+    speak(NUM_CN[n]||String(n));
+    i++;
+    setTimeout(step, 650);
+  }
+  step();
+}
 function newCountQuiz(){
   const icon = pick(MATH_ICONS);
   const count = 2 + Math.floor(Math.random()*9); // 2-10
-  document.getElementById('mathVisual').innerHTML = icon.repeat(count).split('').map(c=>`<span>${c}</span>`).join('');
+  document.getElementById('mathVisual').innerHTML = Array.from({length:count},(_,i)=>`<span class="micon" data-n="${i+1}">${icon}</span>`).join('');
   document.getElementById('mathQ').textContent = '数一数，一共有几个？';
+  document.getElementById('numberLine').innerHTML = '';
   const opts = [count];
   uniquePush(opts, count, ()=> Math.max(1, count + (Math.floor(Math.random()*5)-2)), 4);
   mountQuiz(document.getElementById('mathOptions'), shuffled(opts).map(n=>({value:n,label:n})), count, {nextFn:newCountQuiz});
+  document.getElementById('hintBtn').onclick = ()=>{
+    document.querySelectorAll('.micon').forEach(e=>e.classList.remove('counted'));
+    runCountHint('.micon', 1, count);
+  };
 }
 function newArithQuiz(){
   const isAdd = Math.random()<0.5;
   let a,b,result,icon=pick(MATH_ICONS);
   if(isAdd){ a=1+Math.floor(Math.random()*8); b=1+Math.floor(Math.random()*(9-a)); result=a+b; }
   else { a=2+Math.floor(Math.random()*9); b=1+Math.floor(Math.random()*a); result=a-b; }
-  document.getElementById('mathVisual').innerHTML =
-    `<span>${icon.repeat(a)}</span><span style="margin:0 8px;">${isAdd?'+':'-'}</span><span>${icon.repeat(b)}</span><span style="margin:0 8px;">=</span><span>❓</span>`;
-  document.getElementById('mathQ').textContent = isAdd ? '算一算，加起来一共是几个？' : '算一算，还剩下几个？';
+  if(isAdd){
+    document.getElementById('mathVisual').innerHTML =
+      `<span>${Array.from({length:a},(_,i)=>`<span class="micon" data-n="${i+1}">${icon}</span>`).join('')}</span>` +
+      `<span style="margin:0 8px;">+</span>` +
+      `<span>${Array.from({length:b},(_,i)=>`<span class="micon" data-n="${a+i+1}">${icon}</span>`).join('')}</span>` +
+      `<span style="margin:0 8px;">=</span><span>❓</span>`;
+  } else {
+    // 单一一堆，用"划掉"的方式演示拿走b个，比两堆分开更贴近减法的实际含义
+    document.getElementById('mathVisual').innerHTML =
+      `<span>${Array.from({length:a},(_,i)=>`<span class="micon" data-n="${i+1}">${icon}</span>`).join('')}</span>` +
+      `<span style="margin:0 8px;">− ${b} =</span><span>❓</span>`;
+  }
+  document.getElementById('mathQ').textContent = isAdd ? '算一算，加起来一共是几个？' : '算一算，拿走几个后还剩下几个？';
+  document.getElementById('numberLine').innerHTML = drawNumberLine(a, result);
   const opts = [result];
   uniquePush(opts, result, ()=> Math.max(0, result + (Math.floor(Math.random()*5)-2)), 4);
   mountQuiz(document.getElementById('mathOptions'), shuffled(opts).map(n=>({value:n,label:n})), result, {nextFn:newArithQuiz});
+  document.getElementById('hintBtn').onclick = ()=>{
+    document.querySelectorAll('.micon').forEach(e=>e.classList.remove('counted','removed'));
+    if(isAdd){
+      speak('接着数');
+      runCountHint('.micon', 1, result);
+    } else {
+      let i=0; mathHintRunning=true;
+      const removeEls = Array.from(document.querySelectorAll('.micon')).sort((x,y)=> parseInt(y.dataset.n)-parseInt(x.dataset.n)).slice(0,b);
+      function step(){
+        if(i>=removeEls.length){ mathHintRunning=false; speak('还剩'+NUM_CN[result]); return; }
+        removeEls[i].classList.add('removed');
+        speak('拿走'+NUM_CN[i+1]);
+        i++;
+        setTimeout(step, 700);
+      }
+      step();
+    }
+  };
 }
 
 /* ================= 时间认知 ================= */
@@ -501,11 +574,11 @@ function newEnglishQuiz(){
 }
 
 /* ================= 古诗诵读 ================= */
+// 上海市小学语文一年级（统编版·五四学制，一年级下册）实际收录的3首古诗
 const POEMS = [
   {title:'静夜思', author:'李白', lines:['床前明月光，','疑是地上霜。','举头望明月，','低头思故乡。']},
-  {title:'咏鹅', author:'骆宾王', lines:['鹅，鹅，鹅，','曲项向天歌。','白毛浮绿水，','红掌拨清波。']},
-  {title:'春晓', author:'孟浩然', lines:['春眠不觉晓，','处处闻啼鸟。','夜来风雨声，','花落知多少。']},
-  {title:'悯农', author:'李绅', lines:['锄禾日当午，','汗滴禾下土。','谁知盘中餐，','粒粒皆辛苦。']}
+  {title:'池上', author:'白居易', lines:['小娃撑小艇，','偷采白莲回。','不解藏踪迹，','浮萍一道开。']},
+  {title:'小池', author:'杨万里', lines:['泉眼无声惜细流，','树阴照水爱晴柔。','小荷才露尖尖角，','早有蜻蜓立上头。']}
 ];
 function renderPoems(){
   contentEl.innerHTML = `
@@ -796,6 +869,12 @@ const PLANT_TYPES = {
   wallnut:{name:'坚果墙', icon:ART.wallnut(), cost:50, hp:300, kind:'wall'}
 };
 let game = null;
+const SPEED_PRESETS = {
+  slow:{label:'🐢 慢速', mult:0.6, spawnMult:1.5},
+  normal:{label:'🚶 标准', mult:0.9, spawnMult:1},
+  fast:{label:'🏃 快速', mult:1.3, spawnMult:0.75}
+};
+let gameSpeedKey = 'slow';
 function renderGame(){
   contentEl.innerHTML = `
     <h2>🧟 植物大战僵尸</h2>
@@ -805,6 +884,9 @@ function renderGame(){
       <div class="stat-chip">❤️ 生命：<span id="gLives"></span></div>
       <div class="stat-chip">🏆 得分：<span id="gScore">0</span></div>
       <div class="stat-chip">🌊 波次：<span id="gWave">1</span></div>
+    </div>
+    <div class="section-tabs" id="speedTabs">
+      ${Object.entries(SPEED_PRESETS).map(([k,p])=>`<button data-speed="${k}" class="${k===gameSpeedKey?'active':''}">${p.label}</button>`).join('')}
     </div>
     <div id="plantBar"></div>
     <div id="boardWrap">
@@ -834,6 +916,14 @@ function renderGame(){
   board.innerHTML = '';
   for(let r=0;r<ROWS;r++){ const lane = document.createElement('div'); lane.className='lane'; lane.dataset.row=r; board.appendChild(lane); }
   document.getElementById('restartBtn').addEventListener('click', startGame);
+  document.querySelectorAll('#speedTabs button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      gameSpeedKey = b.dataset.speed;
+      document.querySelectorAll('#speedTabs button').forEach(x=>x.classList.toggle('active', x===b));
+      const mult = SPEED_PRESETS[gameSpeedKey].mult;
+      if(game) game.zombies.forEach(z=> z.speed = z.baseSpeed*mult);
+    });
+  });
   document.querySelectorAll('.plant-opt').forEach(b=>{
     b.addEventListener('click', ()=>{ game.selected = game.selected===b.dataset.key ? null : b.dataset.key; refreshPlantBar(); });
   });
@@ -863,7 +953,7 @@ function refreshPlantBar(){
 function colX(col){ return (col+0.5)/COLS*100; }
 function startGame(){
   game = { plants:[], zombies:[], peas:[], sunDrops:[], lives:3, score:0, wave:1, over:false, selected:null,
-    spawnTimer:4, waveTimer:20, sunDropTimer:9 };
+    spawnTimer:9, waveTimer:25, sunDropTimer:6 };
   document.getElementById('gLives').textContent = '❤️'.repeat(game.lives);
   document.getElementById('gScore').textContent = 0;
   document.getElementById('gWave').textContent = 1;
@@ -887,23 +977,29 @@ function tickGame(dt){
   document.getElementById('gSun').textContent = state.sun;
   game.waveTimer -= dt;
   if(game.waveTimer<=0){ game.wave++; game.waveTimer=20; document.getElementById('gWave').textContent=game.wave; }
+  const speedPreset = SPEED_PRESETS[gameSpeedKey];
   game.spawnTimer -= dt;
   if(game.spawnTimer<=0){
     const row = Math.floor(Math.random()*ROWS);
     const roll = Math.random();
     const kind = game.wave>=6 && roll<0.2 ? 'bucket' : (game.wave>=3 && roll<0.45 ? 'cone' : 'normal');
-    const baseHp = kind==='bucket'?260:(kind==='cone'?160:70);
-    game.zombies.push({ row, pos:100, hp: baseHp + game.wave*12, maxHp: baseHp + game.wave*12,
-      speed: 2.6 + game.wave*0.2, dps: 18, kind, slowTimer:0 });
-    game.spawnTimer = Math.max(2.2, 4.5 - game.wave*0.25);
+    const baseHp = kind==='bucket'?220:(kind==='cone'?130:60);
+    const baseSpeed = 1.5 + game.wave*0.12;
+    game.zombies.push({ row, pos:100, hp: baseHp + game.wave*10, maxHp: baseHp + game.wave*10,
+      speed: baseSpeed*speedPreset.mult, baseSpeed, dps: 16, kind, slowTimer:0 });
+    game.spawnTimer = Math.max(4, 7.5 - game.wave*0.35) * speedPreset.spawnMult;
   }
   game.sunDropTimer -= dt;
   if(game.sunDropTimer<=0){
-    game.sunDrops.push({ x: 10+Math.random()*80, t:0, landAt:2.5, life:7 });
-    game.sunDropTimer = 8 + Math.random()*5;
+    game.sunDrops.push({ x: 10+Math.random()*80, t:0, landAt:2.5, life:8, el:null });
+    game.sunDropTimer = 7 + Math.random()*5;
   }
   for(const sd of game.sunDrops) sd.t += dt;
-  game.sunDrops = game.sunDrops.filter(sd=> sd.t < sd.life);
+  game.sunDrops = game.sunDrops.filter(sd=>{
+    const keep = sd.t < sd.life;
+    if(!keep && sd.el) sd.el.remove();
+    return keep;
+  });
   for(const p of game.plants){
     const type = PLANT_TYPES[p.type];
     if(type.kind==='sun'){
@@ -973,15 +1069,17 @@ function renderGameFrame(){
     }
   }
   const wrap = document.getElementById('boardWrap');
-  wrap.querySelectorAll('.sun-drop-el').forEach(e=>e.remove());
   const wrapH = wrap.clientHeight || 340;
   for(const sd of game.sunDrops){
-    const el = document.createElement('div'); el.className='sun-drop-el';
+    if(!sd.el){
+      const el = document.createElement('div'); el.className='sun-drop-el'; el.style.animation='none';
+      el.innerHTML = `<svg viewBox="0 0 100 100">${ART.sun()}</svg>`;
+      el.addEventListener('click', ()=>{ if(sd.life<=0) return; addSun(20, el); sd.life=0; });
+      wrap.appendChild(el);
+      sd.el = el;
+    }
     const topPct = Math.min(1, sd.t/sd.landAt);
-    el.style.left = sd.x+'%'; el.style.top = (topPct*(wrapH-40))+'px'; el.style.animation='none';
-    el.innerHTML = `<svg viewBox="0 0 100 100">${ART.sun()}</svg>`;
-    el.addEventListener('click', ()=>{ addSun(20, el); sd.life=0; });
-    wrap.appendChild(el);
+    sd.el.style.left = sd.x+'%'; sd.el.style.top = (topPct*(wrapH-40))+'px';
   }
 }
 function endGame(){
